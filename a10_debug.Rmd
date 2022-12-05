@@ -11,26 +11,26 @@ library(rstatix)
 library(ggpubr)
 ```
 
-# download data into a dataframe called "assignment9"
+# download data into a dataframe called "assignment10"
 
 ```{r}
-assignment9 = read_csv("a9_data.csv")
+assignment10 = read_csv("a10_data.csv")
 ```
 
 # basic descriptives
 
 ```{r}
-assignment9 %>% 
+assignment10 %>% 
   group_by(ID, accessibility, distinctiveness) %>% 
   count()
 
-lenth(assignment9 %>% pull(subject) %>% unique())
+lenth(assignment10 %>% pull(subject) %>% unique())
 ```
 
 # filtering to important trials
 
 ```{r}
-main_data = assignment9 %>% filter(!is.na(accessibility)) %>%
+main_data = assignment10 %>% filter(!is.na(accessibility)) %>%
   filter(!accessibility %in% "practice")
 
 main_data %>% group_by(subject, accessibility, distinctiveness) %>% 
