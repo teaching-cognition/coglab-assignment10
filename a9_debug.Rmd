@@ -1,0 +1,117 @@
+---
+title: "assignment 9"
+output: html_document
+date: "2022-08-08"
+---
+# load packages
+```{r}
+library(tidyverse)
+library(ggthemes)
+library(rstatix)
+library(ggpubr)
+```
+
+# download data into a dataframe called "assignment9"
+
+```{r}
+assignment9 = read_csv("a9_data.csv")
+```
+
+# basic descriptives
+
+```{r}
+assignment9 %>% 
+  group_by(ID, accessibility, distinctiveness) %>% 
+  count()
+
+lenth(assignment9 %>% pull(subject) %>% unique())
+```
+
+# filtering to important trials
+
+```{r}
+main_data = assignment9 %>% filter(!is.na(accessibility)) %>%
+  filter(!accessibility %in% "practice")
+
+main_data %>% group_by(subject, accessibility, distinctiveness) %>% 
+  count()
+```
+
+# mean and subject-level ratings
+```{r}
+subject_rating = main_data %>% 
+  group_by(subject, accessibility, distinctiveness) %>% 
+  summarise(mean_rating = mean(response))
+
+counts = main_data %>% 
+  group_by(accessibility, distinctiveness) %>% 
+  count()
+
+mean_rating = main_data %>% 
+  group_by(accessibility, distinctiveness) %>% 
+  summarise(mean_rating = mean(response),
+            sd_rating = sd(response))  %>%
+  left_join(counts) %>%
+  mutate(SE = sd_rating/n,
+    ymin = mean_rating - 1.96*SE, 
+        ymax = mean_rating + 1.96*SE)
+
+```
+
+# figure
+```{r}
+mean_rating %>%
+  ggplot(aes(x = accessibility, y = mean_rating, 
+             group = distinctiveness, fill = distinctiveness))+
+  geom_col(position = "dodge")+
+  geom_errorbar(aes(ymin = ymin, ymax = ymax),
+                width = .25, 
+                position = position_dodge(width=0.9))+
+    geom_point(data = subject_rating, aes(x = accessibility, y = mean_rating, 
+             group = distinctiveness),
+             position = position_jitterdodge(jitter.width = 0.1),
+             alpha = 0.3)+
+
+  scale_fill_hc()+
+  theme_few()
+```
+
+# ANOVA
+
+```{r}
+outliers = subject_rating %>%
+  group_by(accessibility, distinctiveness) %>% 
+  identify_outliers(mean_rating)
+ 
+ sids = outliers %>% filter(is.extreme == TRUE) %>% pull(subject)
+ 
+ subject_ratings_new = subject_rating %>% filter(!subject %in% sids)
+ 
+subject_ratings_new %>%
+  group_by(accessibility, distinctiveness) %>% 
+   shapiro_test(mean_rating)
+ 
+ggqqplot(subject_ratings_new, "rating", ggtheme = theme_bw()) +
+  facet_grid(accessibility ~ distinctiveness, labeller = "label_both")
+
+
+## ANOVA for mean ratings as a function of accessibility and distinctiveness
+
+rm.aov = anova_test(
+  data = subject_ratings_new, dv = RT, wid = ID,
+  within = c(pathlength, weight)
+  )
+
+get_anova_table(rm.aov)
+ 
+## posthoc
+
+subject_ratings_new %>%
+  group_by(ID) %>%
+  anova_test(dv = mean_rating, wid = ID, within = pathlength) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+```
+
+
+
